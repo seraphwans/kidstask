@@ -462,6 +462,17 @@ body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--te
   </div>
 </div>
 
+<!-- Confirm Dialog -->
+<div class="loading-overlay" id="confirmOverlay" style="z-index:700;">
+  <div class="loading-box" style="max-width:300px;width:90%;">
+    <div id="confirmMsg" style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:20px;line-height:1.6;white-space:pre-line;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="confirmResolve(false)" style="flex:1;padding:12px;border:2px solid #e5e7eb;border-radius:12px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;background:white;cursor:pointer;">キャンセル</button>
+      <button onclick="confirmResolve(true)" style="flex:1;padding:12px;border:none;border-radius:12px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;background:var(--red);color:white;cursor:pointer;">削除する</button>
+    </div>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-box">
     <div class="loading-spinner"></div>
@@ -917,7 +928,8 @@ async function addChild() {
 }
 
 async function removeChild(id) {
-  if (!confirm('削除しますか？')) return;
+  const ok = await confirmDialog('このお子さんを削除しますか？\n関連するタスクも削除されます。');
+  if (!ok) return;
   appData.children = appData.children.filter(c=>c.id!==id);
   appData.tasks    = appData.tasks.filter(t=>t.childId!==id);
   saveData();
@@ -945,7 +957,8 @@ async function addTask() {
 }
 
 async function removeTask(id) {
-  if (!confirm('削除しますか？')) return;
+  const ok = await confirmDialog('このタスクを削除しますか？');
+  if (!ok) return;
   appData.tasks = appData.tasks.filter(t=>t.id!==id);
   saveData();
   showLoading('削除中...');
@@ -955,7 +968,8 @@ async function removeTask(id) {
 }
 
 async function saveAndReset() {
-  if (!confirm('今日の記録を保存して、チェックをリセットしますか？')) return;
+  const ok = await confirmDialog('今日の記録を保存して、チェックをリセットしますか？');
+  if (!ok) return;
   const todayKey  = today();
   const todayDone = appData.done[todayKey] || {};
   const scores = appData.children.map(c => {
@@ -999,6 +1013,22 @@ function promptChangeUrl() {
   } else if (url !== null) {
     showToast('❌ 正しいURLを入力してください');
   }
+}
+
+// ============================================================
+// CUSTOM CONFIRM DIALOG
+// ============================================================
+let _confirmResolve = null;
+function confirmDialog(msg) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmOverlay').classList.add('show');
+  });
+}
+function confirmResolve(result) {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
 }
 
 // ============================================================
