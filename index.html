@@ -953,7 +953,7 @@ function renderAdmin() {
     :appData.children.map(c=>`<div class="manage-item">
         <span style="font-size:22px">${c.emoji}</span>
         <div class="manage-info"><div class="manage-name" style="color:${c.color}">${c.name}</div></div>
-        <button class="btn btn-danger btn-sm" onclick="removeChild('${c.id}')">削除</button>
+        <button class="btn btn-danger btn-sm" onclick="onclick="deleteChild(('${c.id}')">削除</button>
       </div>`).join('');
 
   const sel=document.getElementById('newTaskChild');
@@ -985,6 +985,7 @@ function saveRate() {
 async function addChild() {
   const name=document.getElementById('newChildName').value.trim();
   const emoji=document.getElementById('newChildEmoji').value.trim()||'😊';
+  
   if (!name) { showToast('❌ 名前を入力してください'); return; }
   showLoading('追加中...');
   const child={id:'c'+Date.now(),name,emoji,color:COLORS[appData.children.length%COLORS.length]};
@@ -998,7 +999,7 @@ async function addChild() {
   showToast('✅ 追加しました');
 }
 
-async function removeChild(id) {
+async function deleteChild(id) {
   const ok=await confirmDialog('このお子さんを削除しますか？\n関連するタスクも削除されます。');
   if (!ok) return;
   appData.children=appData.children.filter(c=>c.id!==id);
