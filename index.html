@@ -690,7 +690,9 @@ function renderTasks() {
   if (!currentUser) return;
   const myTasks=getMyTasks();
   const todayDone=appData.done[today()]||{};
-  const doneTasks=myTasks.filter(t=>todayDone[t.id]);
+  const childId = currentUser.isParent ? null : currentUser.id;
+  const doneKey = (taskId) => childId ? childId+'_'+taskId : taskId;
+  const doneTasks=myTasks.filter(t=>todayDone[doneKey(t.id)]);
   const score=doneTasks.reduce((s,t)=>s+(t.points||10),0);
   const maxScore=myTasks.reduce((s,t)=>s+(t.points||10),0);
   const pct=myTasks.length?Math.round(doneTasks.length/myTasks.length*100):0;
@@ -707,7 +709,7 @@ function renderTasks() {
   }
   let html=`<div class="tasks-card"><div class="tasks-card-title">📋 今日のタスク</div>`;
   myTasks.forEach(t=>{
-    const done=!!todayDone[t.id];
+    const done=!!todayDone[doneKey(t.id)];
     html+=`<div class="task-item ${done?'done':''}" onclick="toggleTask('${t.id}')">
       <div class="task-check">${done?'✓':''}</div>
       <div class="task-text">
@@ -721,15 +723,17 @@ function renderTasks() {
 }
 
 function toggleTask(taskId) {
+  if (!currentUser || currentUser.isParent) return;
+  const key = currentUser.id + '_' + taskId;
   if (!appData.done[today()]) appData.done[today()]={};
-  const cur=!!appData.done[today()][taskId];
-  appData.done[today()][taskId]=!cur;
+  const cur=!!appData.done[today()][key];
+  appData.done[today()][key]=!cur;
   saveData(); renderTasks();
   if (!cur) {
     const myTasks=getMyTasks();
-    if (myTasks.length>0&&myTasks.every(t=>appData.done[today()]?.[t.id])) setTimeout(confetti,200);
+    if (myTasks.length>0&&myTasks.every(t=>appData.done[today()]?.[currentUser.id+'_'+t.id])) setTimeout(confetti,200);
   }
-  pushDone(taskId,!cur);
+  pushDone(key,!cur);
 }
 
 // ============================================================
@@ -1051,7 +1055,12 @@ async function saveAndReset() {
   const todayDone=appData.done[todayKey]||{};
   const scores=appData.children.map(c=>{
     const myTasks=getActiveTasks(c.id);
-    return {childId:c.id,score:myTasks.filter(t=>todayDone[t.id]).reduce((s,t)=>s+t.points,0),max:myTasks.reduce((s,t)=>s+t.points,0)};
+    // childId_taskId キーで照合
+    return {
+      childId:c.id,
+      score:myTasks.filter(t=>todayDone[c.id+'_'+t.id]===true).reduce((s,t)=>s+t.points,0),
+      max:myTasks.reduce((s,t)=>s+t.points,0)
+    };
   });
   appData.history=appData.history.filter(h=>toDateStr(h.date)!==todayKey);
   appData.history.push({date:todayKey,scores});
