@@ -728,7 +728,7 @@ function toggleTask(taskId) {
   if (!appData.done[today()]) appData.done[today()]={};
   const cur=!!appData.done[today()][key];
   appData.done[today()][key]=!cur;
-  saveData(); renderTasks();
+  saveData(); renderTasks(); renderLoginCards();
   if (!cur) {
     const myTasks=getMyTasks();
     if (myTasks.length>0&&myTasks.every(t=>appData.done[today()]?.[currentUser.id+'_'+t.id])) setTimeout(confetti,200);
