@@ -494,6 +494,23 @@ function saveCfg()  { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
 function loadData() { const s=localStorage.getItem(DATA_KEY); if(s) appData={...appData,...JSON.parse(s)}; }
 function saveData() { localStorage.setItem(DATA_KEY, JSON.stringify(appData)); }
 
+// スプレッドシートから全データを取得してappDataを上書き（常にスプシが正）
+async function syncFromSheets() {
+  try {
+    const r = await gasRequest('getData');
+    if (r.ok) {
+      if(r.children) appData.children = r.children;
+      if(r.tasks)    appData.tasks    = r.tasks;
+      appData.done[today()]           = r.todayDone || {};
+      if(r.history)  appData.history  = r.history;
+      if(r.wallets)  appData.wallets  = r.wallets;
+      saveData();
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
 // ============================================================
 // SETUP
 // ============================================================
@@ -523,10 +540,15 @@ function init() {
 
 function goLogin() {
   currentUser=null; pinBuffer='';
-  renderLoginCards(); showScreen('login');
+  showScreen('login');
   const now=new Date();
   document.getElementById('login-date-label').textContent=
     `${now.getMonth()+1}月${now.getDate()}日(${WEEKDAYS[now.getDay()]})`;
+  // 必ずスプシから最新データを取得してから描画
+  renderLoginCards();
+  syncFromSheets().then(ok=>{
+    renderLoginCards();
+  });
 }
 
 function renderLoginCards() {
@@ -536,7 +558,7 @@ function renderLoginCards() {
     html+=`<div style="text-align:center;color:rgba(255,255,255,0.7);font-weight:700;font-size:14px;margin-bottom:16px;">まず親モードでお子さんを登録してください</div>`;
   appData.children.forEach(c => {
     const myTasks = getActiveTasks(c.id);
-    const done = myTasks.filter(t=>appData.done[today()]?.[t.id]).length;
+    const done = myTasks.filter(t=>appData.done[today()]?.[c.id+'_'+t.id]).length;
     const wallet = getWallet(c.id);
     html+=`<div class="login-card" onclick="loginAs('${c.id}')" style="border-color:${c.color}44;">
       <div class="login-avatar" style="background:${c.color}22">${c.emoji}</div>
@@ -632,19 +654,14 @@ async function gasRequest(action,payload={}) {
 }
 async function loadFromSheets() {
   setSyncStatus('syncing','スプレッドシートと同期中...');
-  try {
-    const r=await gasRequest('getData');
-    if (r.ok) {
-      if(r.children) appData.children=r.children;
-      if(r.tasks)    appData.tasks=r.tasks;
-      // スプレッドシートを正とする（端末間の差異をなくす）
-      appData.done[today()] = r.todayDone || {};
-      if(r.history && r.history.length > 0) appData.history=r.history;
-      if(r.wallets)  appData.wallets=r.wallets;
-      saveData(); setSyncStatus('ok','同期済み ✓');
-      renderTasks(); renderLoginCards();
-    } else { setSyncStatus('err','オフラインモード（ローカルデータ使用）'); }
-  } catch { setSyncStatus('err','オフラインモード（ローカルデータ使用）'); }
+  const ok = await syncFromSheets();
+  if (ok) {
+    setSyncStatus('ok','同期済み ✓');
+    renderTasks();
+    renderLoginCards();
+  } else {
+    setSyncStatus('err','オフラインモード（ローカルデータ使用）');
+  }
 }
 async function pushDone(taskId,done) {
   setSyncStatus('syncing','保存中...');
