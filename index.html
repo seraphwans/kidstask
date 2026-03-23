@@ -658,7 +658,6 @@ async function loadFromSheets() {
   if (ok) {
     setSyncStatus('ok','同期済み ✓');
     renderTasks();
-    renderLoginCards();
   } else {
     setSyncStatus('err','オフラインモード（ローカルデータ使用）');
   }
@@ -737,18 +736,29 @@ function renderTasks() {
   document.getElementById('tasksContainer').innerHTML=html;
 }
 
-function toggleTask(taskId) {
+async function toggleTask(taskId) {
   if (!currentUser || currentUser.isParent) return;
   const key = currentUser.id + '_' + taskId;
   if (!appData.done[today()]) appData.done[today()]={};
   const cur=!!appData.done[today()][key];
-  appData.done[today()][key]=!cur;
-  saveData(); renderTasks(); renderLoginCards();
-  if (!cur) {
+  const newVal = !cur;
+  // まずローカルを更新して即座に画面反映
+  appData.done[today()][key]=newVal;
+  saveData();
+  renderTasks();
+  renderLoginCards();
+  if (newVal) {
     const myTasks=getMyTasks();
     if (myTasks.length>0&&myTasks.every(t=>appData.done[today()]?.[currentUser.id+'_'+t.id])) setTimeout(confetti,200);
   }
-  pushDone(key,!cur);
+  // GASに保存（完了後に再読み込みはしない）
+  setSyncStatus('syncing','保存中...');
+  try {
+    const r=await gasRequest('setDone',{taskId:key,date:today(),done:newVal});
+    setSyncStatus(r.ok?'ok':'err', r.ok?'保存済み ✓':'保存失敗（ローカルに保存済み）');
+  } catch {
+    setSyncStatus('err','保存失敗（ローカルに保存済み）');
+  }
 }
 
 // ============================================================
