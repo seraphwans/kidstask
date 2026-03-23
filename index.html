@@ -1080,7 +1080,6 @@ async function saveAndReset() {
   const todayDone=appData.done[todayKey]||{};
   const scores=appData.children.map(c=>{
     const myTasks=getActiveTasks(c.id);
-    // childId_taskId キーで照合
     return {
       childId:c.id,
       score:myTasks.filter(t=>todayDone[c.id+'_'+t.id]===true).reduce((s,t)=>s+t.points,0),
@@ -1096,8 +1095,10 @@ async function saveAndReset() {
     await gasRequest('saveHistory',{history:appData.history});
     await gasRequest('clearToday',{date:todayKey});
   } catch {}
-  hideLoading(); renderTasks();
+  hideLoading();
   showToast('✅ 記録しました！翌日の準備完了');
+  // リセット後はログイン画面に戻る（子供が次回開いたときに最新状態になる）
+  setTimeout(()=>goLogin(), 1500);
 }
 
 function changePin() {
